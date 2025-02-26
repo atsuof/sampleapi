@@ -17,6 +17,18 @@ func PostArticleHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func ArticleListHandler(w http.ResponseWriter, req *http.Request) {
+
+	if p, ok := req.URL.Query()["page"]; ok && len(p) > 0 {
+		page, err := strconv.Atoi(p[0])
+		if err != nil {
+			http.Error(w, "Invalid query parameter", http.StatusBadRequest)
+			return
+		}
+		io.WriteString(w, fmt.Sprintf("Article List page%d\n", page))
+	} else {
+		//page 1 と同じ処理をしたい
+	}
+
 	io.WriteString(w, "Article List..\n")
 }
 
