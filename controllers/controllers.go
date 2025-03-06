@@ -1,4 +1,4 @@
-package handlers
+package controllers
 
 import (
 	"encoding/json"
@@ -11,21 +11,28 @@ import (
 	"strconv"
 )
 
-func HelloHandler(w http.ResponseWriter, req *http.Request) {
+type MyAppControllers struct {
+	service *services.MyAppService
+}
+
+func NewMyAppControllers(service *services.MyAppService) *MyAppControllers {
+	return &MyAppControllers{service: service}
+}
+
+func (s *MyAppControllers) HelloHandler(w http.ResponseWriter, req *http.Request) {
 	io.WriteString(w, "Hello, world!\n")
 }
 
 // PostArticleHandler function handles POST requests for posting an article.
 // It handles request to "/article"
-func PostArticleHandler(w http.ResponseWriter, req *http.Request) {
-	//io.WriteString(w, "Posting Articl..\n")
+func (s *MyAppControllers) PostArticleHandler(w http.ResponseWriter, req *http.Request) {
 
 	var article models.Article
 	if decErr := json.NewDecoder(req.Body).Decode(&article); decErr != nil {
 		http.Error(w, "fail to get request body\n", http.StatusBadRequest)
 	}
 
-	registered, err := services.PostArticleService(article)
+	registered, err := s.service.PostArticleService(article)
 	if err != nil {
 		http.Error(w, "registration the Article is failed", http.StatusInternalServerError)
 		return
@@ -38,7 +45,7 @@ func PostArticleHandler(w http.ResponseWriter, req *http.Request) {
 
 // ArticleListHandler handles GET requests for fetching a list of articles, optionally filtered by page query parameter.
 // It handles request to "/article/list"
-func ArticleListHandler(w http.ResponseWriter, req *http.Request) {
+func (s *MyAppControllers) ArticleListHandler(w http.ResponseWriter, req *http.Request) {
 
 	p, _ := req.URL.Query()["page"]
 	page := 1
@@ -51,7 +58,7 @@ func ArticleListHandler(w http.ResponseWriter, req *http.Request) {
 		page = tmpPage
 	}
 
-	articles, err := services.GetArticleListService(page)
+	articles, err := s.service.GetArticleListService(page)
 	if err != nil {
 		http.Error(w, "Failed to get articles", http.StatusInternalServerError)
 		return
@@ -62,14 +69,14 @@ func ArticleListHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func ArticleDetailHandler(w http.ResponseWriter, req *http.Request) {
+func (s *MyAppControllers) ArticleDetailHandler(w http.ResponseWriter, req *http.Request) {
 	articleID, err := strconv.Atoi(mux.Vars(req)["id"])
 	if err != nil {
 		http.Error(w, "Invalid Query parameter", http.StatusBadRequest)
 		return
 	}
 
-	article, err := services.GetArticleService(articleID)
+	article, err := s.service.GetArticleService(articleID)
 	if err != nil {
 		http.Error(w, "failed to get article", http.StatusInternalServerError)
 	}
@@ -79,7 +86,7 @@ func ArticleDetailHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func PostArticleNiceHandler(w http.ResponseWriter, req *http.Request) {
+func (s *MyAppControllers) PostArticleNiceHandler(w http.ResponseWriter, req *http.Request) {
 
 	id, ok := req.URL.Query()["id"]
 	if !ok {
@@ -87,7 +94,7 @@ func PostArticleNiceHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	articleID, err := strconv.Atoi(id[0])
 
-	err = services.PostNiceService(articleID)
+	err = s.service.PostNiceService(articleID)
 	if err != nil {
 		http.Error(w, "Failed to like the article", http.StatusInternalServerError)
 	}
@@ -99,14 +106,14 @@ func PostArticleNiceHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func PostArticleCommentHandler(w http.ResponseWriter, req *http.Request) {
+func (s *MyAppControllers) PostArticleCommentHandler(w http.ResponseWriter, req *http.Request) {
 
 	var comment models.Comment
 	if decErr := json.NewDecoder(req.Body).Decode(&comment); decErr != nil {
 		http.Error(w, "fail to get request body\n", http.StatusBadRequest)
 	}
 
-	registered, err := services.PostCommentService(comment)
+	registered, err := s.service.PostCommentService(comment)
 
 	if err != nil {
 		http.Error(w, "Failed to register the comment", http.StatusInternalServerError)
