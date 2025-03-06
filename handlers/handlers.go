@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/atsuof/sampleapi/models"
+	"github.com/atsuof/sampleapi/services"
 	"github.com/gorilla/mux"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 )
@@ -20,12 +20,18 @@ func HelloHandler(w http.ResponseWriter, req *http.Request) {
 func PostArticleHandler(w http.ResponseWriter, req *http.Request) {
 	//io.WriteString(w, "Posting Articl..\n")
 
-	var article1 models.Article
-	if decErr := json.NewDecoder(req.Body).Decode(&article1); decErr != nil {
+	var article models.Article
+	if decErr := json.NewDecoder(req.Body).Decode(&article); decErr != nil {
 		http.Error(w, "fail to get request body\n", http.StatusBadRequest)
 	}
 
-	if encErr := json.NewEncoder(w).Encode(article1); encErr != nil {
+	registered, err := services.PostArticleService(article)
+	if err != nil {
+		http.Error(w, "registration the Article is failed", http.StatusInternalServerError)
+		return
+	}
+
+	if encErr := json.NewEncoder(w).Encode(registered); encErr != nil {
 		http.Error(w, "fail to create response body\n", http.StatusBadRequest)
 	}
 }
@@ -35,11 +41,6 @@ func PostArticleHandler(w http.ResponseWriter, req *http.Request) {
 func ArticleListHandler(w http.ResponseWriter, req *http.Request) {
 
 	p, _ := req.URL.Query()["page"]
-	//if !ok {
-	//	http.Error(w, "Invalid query parameter", http.StatusBadRequest)
-	//	return
-	//}
-
 	page := 1
 	if len(p) > 0 {
 		tmpPage, err := strconv.Atoi(p[0])
@@ -50,21 +51,15 @@ func ArticleListHandler(w http.ResponseWriter, req *http.Request) {
 		page = tmpPage
 	}
 
-	log.Println(page)
+	articles, err := services.GetArticleListService(page)
+	if err != nil {
+		http.Error(w, "Failed to get articles", http.StatusInternalServerError)
+		return
+	}
 
-	articles := []models.Article{models.Article1, models.Article2}
 	if err := json.NewEncoder(w).Encode(&articles); err != nil {
 		http.Error(w, "failed to marshal json data", http.StatusBadRequest)
 	}
-}
-
-func returnJsonDatas() ([]byte, error) {
-	articles := []models.Article{models.Article1, models.Article2}
-	jsonDates, err := json.Marshal(articles)
-	if err != nil {
-		return nil, err
-	}
-	return jsonDates, nil
 }
 
 func ArticleDetailHandler(w http.ResponseWriter, req *http.Request) {
@@ -73,31 +68,52 @@ func ArticleDetailHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Invalid Query parameter", http.StatusBadRequest)
 		return
 	}
-	//resString := fmt.Sprintf("Article No:%d\n", articleID)
-	//io.WriteString(w, resString)
-	fmt.Println(articleID)
-	jsonData, err := json.Marshal(models.Article1)
+
+	article, err := services.GetArticleService(articleID)
 	if err != nil {
-		http.Error(w, "failed to marshal json data", http.StatusInternalServerError)
+		http.Error(w, "failed to get article", http.StatusInternalServerError)
 	}
-	w.Write(jsonData)
+
+	if err := json.NewEncoder(w).Encode(&article); err != nil {
+		http.Error(w, "failed to marshal json data", http.StatusBadRequest)
+	}
 }
 
 func PostArticleNiceHandler(w http.ResponseWriter, req *http.Request) {
-	//io.WriteString(w, "Posting Nice...\n")
 
-	jsonData, err := json.Marshal(models.Article1)
-	if err != nil {
-		http.Error(w, "failed to marshal json data", http.StatusInternalServerError)
+	id, ok := req.URL.Query()["id"]
+	if !ok {
+		http.Error(w, "Failed to like the article", http.StatusInternalServerError)
 	}
-	w.Write(jsonData)
+	articleID, err := strconv.Atoi(id[0])
+
+	err = services.PostNiceService(articleID)
+	if err != nil {
+		http.Error(w, "Failed to like the article", http.StatusInternalServerError)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, writeErr := fmt.Fprintln(w, "Success to like the article")
+	if writeErr != nil {
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+	}
 }
 
 func PostArticleCommentHandler(w http.ResponseWriter, req *http.Request) {
-	io.WriteString(w, "Posting Comment...\n")
-	jsonData, err := json.Marshal(models.Comment1)
-	if err != nil {
-		http.Error(w, "failed to marshal json data", http.StatusInternalServerError)
+
+	var comment models.Comment
+	if decErr := json.NewDecoder(req.Body).Decode(&comment); decErr != nil {
+		http.Error(w, "fail to get request body\n", http.StatusBadRequest)
 	}
-	w.Write(jsonData)
+
+	registered, err := services.PostCommentService(comment)
+
+	if err != nil {
+		http.Error(w, "Failed to register the comment", http.StatusInternalServerError)
+	}
+
+	if err := json.NewEncoder(w).Encode(&registered); err != nil {
+		http.Error(w, "failed to marshal json data", http.StatusBadRequest)
+	}
+
 }
