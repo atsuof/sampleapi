@@ -1,1 +1,1 @@
-this is sample code for own studies
+this is sample code for self studies
