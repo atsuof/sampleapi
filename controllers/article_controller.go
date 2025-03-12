@@ -3,29 +3,29 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/atsuof/sampleapi/controllers/services"
 	"github.com/atsuof/sampleapi/models"
-	"github.com/atsuof/sampleapi/services"
 	"github.com/gorilla/mux"
 	"io"
 	"net/http"
 	"strconv"
 )
 
-type MyAppControllers struct {
-	service *services.MyAppService
+type ArticleController struct {
+	service services.ArticleService
 }
 
-func NewMyAppControllers(service *services.MyAppService) *MyAppControllers {
-	return &MyAppControllers{service: service}
+func NewArticleController(service services.ArticleService) *ArticleController {
+	return &ArticleController{service: service}
 }
 
-func (s *MyAppControllers) HelloHandler(w http.ResponseWriter, req *http.Request) {
+func (s *ArticleController) HelloHandler(w http.ResponseWriter, req *http.Request) {
 	io.WriteString(w, "Hello, world!\n")
 }
 
 // PostArticleHandler function handles POST requests for posting an article.
 // It handles request to "/article"
-func (s *MyAppControllers) PostArticleHandler(w http.ResponseWriter, req *http.Request) {
+func (s *ArticleController) PostArticleHandler(w http.ResponseWriter, req *http.Request) {
 
 	var article models.Article
 	if decErr := json.NewDecoder(req.Body).Decode(&article); decErr != nil {
@@ -45,7 +45,7 @@ func (s *MyAppControllers) PostArticleHandler(w http.ResponseWriter, req *http.R
 
 // ArticleListHandler handles GET requests for fetching a list of articles, optionally filtered by page query parameter.
 // It handles request to "/article/list"
-func (s *MyAppControllers) ArticleListHandler(w http.ResponseWriter, req *http.Request) {
+func (s *ArticleController) ArticleListHandler(w http.ResponseWriter, req *http.Request) {
 
 	p, _ := req.URL.Query()["page"]
 	page := 1
@@ -69,7 +69,7 @@ func (s *MyAppControllers) ArticleListHandler(w http.ResponseWriter, req *http.R
 	}
 }
 
-func (s *MyAppControllers) ArticleDetailHandler(w http.ResponseWriter, req *http.Request) {
+func (s *ArticleController) ArticleDetailHandler(w http.ResponseWriter, req *http.Request) {
 	articleID, err := strconv.Atoi(mux.Vars(req)["id"])
 	if err != nil {
 		http.Error(w, "Invalid Query parameter", http.StatusBadRequest)
@@ -86,7 +86,7 @@ func (s *MyAppControllers) ArticleDetailHandler(w http.ResponseWriter, req *http
 	}
 }
 
-func (s *MyAppControllers) PostArticleNiceHandler(w http.ResponseWriter, req *http.Request) {
+func (s *ArticleController) PostArticleNiceHandler(w http.ResponseWriter, req *http.Request) {
 
 	id, ok := req.URL.Query()["id"]
 	if !ok {
@@ -104,23 +104,4 @@ func (s *MyAppControllers) PostArticleNiceHandler(w http.ResponseWriter, req *ht
 	if writeErr != nil {
 		http.Error(w, "Failed to write response", http.StatusInternalServerError)
 	}
-}
-
-func (s *MyAppControllers) PostArticleCommentHandler(w http.ResponseWriter, req *http.Request) {
-
-	var comment models.Comment
-	if decErr := json.NewDecoder(req.Body).Decode(&comment); decErr != nil {
-		http.Error(w, "fail to get request body\n", http.StatusBadRequest)
-	}
-
-	registered, err := s.service.PostCommentService(comment)
-
-	if err != nil {
-		http.Error(w, "Failed to register the comment", http.StatusInternalServerError)
-	}
-
-	if err := json.NewEncoder(w).Encode(&registered); err != nil {
-		http.Error(w, "failed to marshal json data", http.StatusBadRequest)
-	}
-
 }

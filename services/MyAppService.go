@@ -2,6 +2,8 @@ package services
 
 import (
 	"database/sql"
+	"errors"
+	"github.com/atsuof/sampleapi/apperrors"
 	"github.com/atsuof/sampleapi/models"
 	"github.com/atsuof/sampleapi/repositories"
 )
@@ -18,6 +20,11 @@ func (s *MyAppService) GetArticleService(articleiId int) (models.Article, error)
 
 	article, err := repositories.SelectArticleDetail(s.db, articleiId)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = apperrors.NAData.Wrap(err, "no data")
+			return models.Article{}, err
+		}
+		err = apperrors.GetDataFailed.Wrap(err, "fail to get data")
 		return models.Article{}, err
 	}
 
@@ -33,6 +40,7 @@ func (s *MyAppService) PostArticleService(article models.Article) (models.Articl
 
 	registered, err := repositories.InsertArticle(s.db, article)
 	if err != nil {
+		err = apperrors.InsertDataFailed.Wrap(err, "filed to record data")
 		return models.Article{}, err
 	}
 	return registered, nil
