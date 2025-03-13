@@ -3,6 +3,7 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/atsuof/sampleapi/apperrors"
 	"github.com/atsuof/sampleapi/controllers/services"
 	"github.com/atsuof/sampleapi/models"
 	"github.com/gorilla/mux"
@@ -29,6 +30,7 @@ func (s *ArticleController) PostArticleHandler(w http.ResponseWriter, req *http.
 
 	var article models.Article
 	if decErr := json.NewDecoder(req.Body).Decode(&article); decErr != nil {
+		decErr = apperrors.ReqBodyDecodeFailed.Wrap(decErr, "bad request body")
 		http.Error(w, "fail to get request body\n", http.StatusBadRequest)
 	}
 
@@ -52,7 +54,8 @@ func (s *ArticleController) ArticleListHandler(w http.ResponseWriter, req *http.
 	if len(p) > 0 {
 		tmpPage, err := strconv.Atoi(p[0])
 		if err != nil {
-			http.Error(w, "Invalid query parameter", http.StatusBadRequest)
+			err = apperrors.BadParam.Wrap(err, "invalid query parameter")
+			apperrors.HandleError(w, req, err)
 			return
 		}
 		page = tmpPage
@@ -72,13 +75,15 @@ func (s *ArticleController) ArticleListHandler(w http.ResponseWriter, req *http.
 func (s *ArticleController) ArticleDetailHandler(w http.ResponseWriter, req *http.Request) {
 	articleID, err := strconv.Atoi(mux.Vars(req)["id"])
 	if err != nil {
-		http.Error(w, "Invalid Query parameter", http.StatusBadRequest)
+		err = apperrors.BadParam.Wrap(err, "invalid query parameter")
+		apperrors.HandleError(w, req, err)
 		return
 	}
 
 	article, err := s.service.GetArticleService(articleID)
 	if err != nil {
-		http.Error(w, "failed to get article", http.StatusInternalServerError)
+		apperrors.HandleError(w, req, err)
+		return
 	}
 
 	if err := json.NewEncoder(w).Encode(&article); err != nil {
