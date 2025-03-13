@@ -1,9 +1,9 @@
 package apperrors
 
 type MyAppError struct {
-	ErrCode
-	Message string
-	Err     error
+	ErrCode `json:"err-code"`
+	Message string `json:"message"`
+	Err     error  `json:"-"`
 }
 
 func (m *MyAppError) Error() string {
