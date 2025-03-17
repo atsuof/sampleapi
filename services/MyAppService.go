@@ -18,22 +18,61 @@ func NewMyAppService(db *sql.DB) *MyAppService {
 
 func (s *MyAppService) GetArticleService(articleiId int) (models.Article, error) {
 
-	article, err := repositories.SelectArticleDetail(s.db, articleiId)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			err = apperrors.NAData.Wrap(err, "no data")
-			return models.Article{}, err
+	type articleResult struct {
+		article models.Article
+		err     error
+	}
+	artChan := make(chan articleResult)
+	defer close(artChan)
+	go func(ch chan<- articleResult, db *sql.DB, articleId int) {
+		article, err := repositories.SelectArticleDetail(s.db, articleId)
+		ch <- articleResult{article: article, err: err}
+	}(artChan, s.db, articleiId)
+
+	type commentResult struct {
+		comments *[]models.Comment
+		err      error
+	}
+
+	comChan := make(chan commentResult)
+	defer close(comChan)
+	go func(ch chan<- commentResult, db *sql.DB, articleId int) {
+		comments, err := repositories.SelectCommentList(s.db, articleId)
+		ch <- commentResult{
+			comments: &comments,
+			err:      err,
 		}
-		err = apperrors.GetDataFailed.Wrap(err, "fail to get data")
+	}(comChan, s.db, articleiId)
+
+	var article models.Article
+	var commentList []models.Comment
+	var articleGetErr, commentGetErr error
+
+	for i := 0; i < 2; i++ {
+		select {
+		case res := <-artChan:
+			article, articleGetErr = res.article, res.err
+		case res := <-comChan:
+
+			commentList, commentGetErr = *res.comments, res.err
+		}
+	}
+	if articleGetErr != nil {
+		if errors.Is(articleGetErr, sql.ErrNoRows) {
+			articleGetErr = apperrors.NAData.Wrap(articleGetErr, "no data")
+			return models.Article{}, articleGetErr
+		}
+		articleGetErr = apperrors.GetDataFailed.Wrap(articleGetErr, "fail to get data")
+		return models.Article{}, articleGetErr
+	}
+
+	if commentGetErr != nil {
+		err := apperrors.GetDataFailed.Wrap(commentGetErr, "fail to get data")
 		return models.Article{}, err
 	}
 
-	comments, err := repositories.SelectCommentList(s.db, articleiId)
-	if err != nil {
-		return models.Article{}, err
-	}
-	article.Comments = comments
-	return article, err
+	article.Comments = commentList
+	return article, nil
 }
 
 func (s *MyAppService) PostArticleService(article models.Article) (models.Article, error) {
